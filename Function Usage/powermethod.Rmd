@@ -1,0 +1,62 @@
+---
+title: "Power Method Examples"
+author: "David Elsheimer"
+date: "2/26/2020"
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\Real}{\mathbb{R}}
+  - \newcommand{\dom}{{\bf dom}\,}
+  - \newcommand{\Tra}{^{\sf T}} 
+  - \newcommand{\Inv}{^{-1}} 
+  - \def\vec{\mathop{\rm vec}\nolimits}
+  - \def\sweep{\mathop{\rm sweep}\nolimits}
+  - \newcommand{\diag}{\mathop{\rm diag}\nolimits}
+  - \newcommand{\tr}{\operatorname{tr}} 
+  - \newcommand{\epi}{\operatorname{epi}} 
+  - \newcommand{\V}[1]{{\bm{\mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\VE}[2]{\MakeLowercase{#1}_{#2}} 
+  - \newcommand{\Vn}[2]{\V{#1}^{(#2)}} 
+  - \newcommand{\Vtilde}[1]{{\bm{\tilde \mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\Vhat}[1]{{\bm{\hat \mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\VtildeE}[2]{\tilde{\MakeLowercase{#1}}_{#2}} 
+  - \newcommand{\M}[1]{{\bm{\mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\ME}[2]{\MakeLowercase{#1}_{#2}} 
+  - \newcommand{\Mtilde}[1]{{\bm{\tilde \mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\Mhat}[1]{{\bm{\hat \mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\Mcheck}[1]{{\bm{\check \mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\Mbar}[1]{{\bm{\bar \mathbf{\MakeUppercase{#1}}}}}
+  - \newcommand{\Mn}[2]{\M{#1}^{(#2)}} 
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(Matrix)
+```
+
+## Power Method
+
+```{r, echo=TRUE}
+
+y<- as.matrix(as.vector(read.csv("homework3_y.csv")))
+X<-as.matrix(read.csv(gzfile("homework3_x.csv.gz")))
+lambda<-10^seq(-5,5)
+dim(y)
+dim(X)
+kappa(X%*%t(X))
+Betas<-dbelsheiST758::ridge_regression(y,X,lambda)
+gcvlambda<-dbelsheiST758::gcv(y,X,lambda)
+LOOCVlambda<-dbelsheiST758::leave_one_out(y,X,lambda)
+gcvlambda
+LOOCVlambda
+plotdata<- as.data.frame(cbind(lambda,log10(lambda),gcvlambda,LOOCVlambda))
+ggplot(plotdata, aes(x=log10(lambda),y=gcvlambda)) +geom_point()+
+  xlab("log(lambda)") + ylab("GCV Criterion")+
+  geom_vline(xintercept=log10(lambda)[gcvlambda == min(gcvlambda)],color='red')
+ggplot(plotdata, aes(x=log10(lambda),y=LOOCVlambda)) + geom_point()+
+  xlab("log(lambda)") + ylab("LOOCV Error")+
+  geom_vline(xintercept=log10(lambda)[LOOCVlambda == min(LOOCVlambda)],color='red')
+```
+Based on the information from these two plots, GCV and LOOCV error are both minimized for $\lambda = 10^5$. In both cases the largest change occurs between $\lambda = 10^{-5}$ and $\lambda = 10^{-4}$. As LOOCV and  GCV are not computationally intensive here, it is reasonable to choose the best tuning parameter based on the behavior of either in this example. To avoid problems with bias, it is best to choose a small tuning parameter. A large tuning parameter will increase bias, but due to the fact that $\M{XX}\Tra$ has a relatively small condition number (around 156, found with \texttt{kappa()}), it will not be unstable for most perturbations. Thus the resulting matrix $\M{XX}\Tra(\M{XX}\Tra + \lambda\M{I}_n)\Inv$ will be nearly the identity matrix, resulting in a very small denominator in the GCV summation. Thus, the the introduction of large perturbations will be adding more bias but not greatly reducing variance. After $\lambda=10^{-3}$, the reduction in GCV is little, so this is a reasonable choice for $\lambda$.
