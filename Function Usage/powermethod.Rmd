@@ -5,58 +5,170 @@ date: "2/26/2020"
 header-includes:
   - \usepackage{bm}
   - \newcommand{\Real}{\mathbb{R}}
+  - \newcommand{\sweep}{{\bf sweep}\,}
   - \newcommand{\dom}{{\bf dom}\,}
+  - \newcommand{\sign}{{\bf sign}\,}
   - \newcommand{\Tra}{^{\sf T}} 
-  - \newcommand{\Inv}{^{-1}} 
+  - \newcommand{\Inv}{^{-1}}
   - \def\vec{\mathop{\rm vec}\nolimits}
   - \def\sweep{\mathop{\rm sweep}\nolimits}
   - \newcommand{\diag}{\mathop{\rm diag}\nolimits}
-  - \newcommand{\tr}{\operatorname{tr}} 
-  - \newcommand{\epi}{\operatorname{epi}} 
+  - \newcommand{\tr}{\operatorname{tr}}
+  - \newcommand{\epi}{\operatorname{epi}}
   - \newcommand{\V}[1]{{\bm{\mathbf{\MakeLowercase{#1}}}}} 
   - \newcommand{\VE}[2]{\MakeLowercase{#1}_{#2}} 
   - \newcommand{\Vn}[2]{\V{#1}^{(#2)}} 
-  - \newcommand{\Vtilde}[1]{{\bm{\tilde \mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\Vtilde}[1]{{\bm{\tilde \mathbf{\MakeLowercase{#1}}}}}
   - \newcommand{\Vhat}[1]{{\bm{\hat \mathbf{\MakeLowercase{#1}}}}} 
-  - \newcommand{\VtildeE}[2]{\tilde{\MakeLowercase{#1}}_{#2}} 
-  - \newcommand{\M}[1]{{\bm{\mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\VtildeE}[2]{\tilde{\MakeLowercase{#1}}_{#2}}
+  - \newcommand{\M}[1]{{\bm{\mathbf{\MakeUppercase{#1}}}}}
   - \newcommand{\ME}[2]{\MakeLowercase{#1}_{#2}} 
   - \newcommand{\Mtilde}[1]{{\bm{\tilde \mathbf{\MakeUppercase{#1}}}}} 
   - \newcommand{\Mhat}[1]{{\bm{\hat \mathbf{\MakeUppercase{#1}}}}} 
   - \newcommand{\Mcheck}[1]{{\bm{\check \mathbf{\MakeUppercase{#1}}}}} 
-  - \newcommand{\Mbar}[1]{{\bm{\bar \mathbf{\MakeUppercase{#1}}}}}
+  - \newcommand{\Mbar}[1]{{\bm{\bar \mathbf{\MakeUppercase{#1}}}}} 
   - \newcommand{\Mn}[2]{\M{#1}^{(#2)}} 
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)
-library(ggplot2)
-library(Matrix)
-```
 
-## Power Method
+
+## Power Method Examples
+
+Usage of the `power_method_dense` function to compute the largest singular value of the following matrices, comparing results with what is provided by the `svd` function in R. 
 
 ```{r, echo=TRUE}
+set.seed(12345)
+n <- 1e3
+p <- 2e3
+A <- matrix(rnorm(n*p), n, p)
+B <- matrix(rnorm(n*p), n, p)
+C <- matrix(rnorm(n*p), n, p)
 
-y<- as.matrix(as.vector(read.csv("homework3_y.csv")))
-X<-as.matrix(read.csv(gzfile("homework3_x.csv.gz")))
-lambda<-10^seq(-5,5)
-dim(y)
-dim(X)
-kappa(X%*%t(X))
-Betas<-dbelsheiST758::ridge_regression(y,X,lambda)
-gcvlambda<-dbelsheiST758::gcv(y,X,lambda)
-LOOCVlambda<-dbelsheiST758::leave_one_out(y,X,lambda)
-gcvlambda
-LOOCVlambda
-plotdata<- as.data.frame(cbind(lambda,log10(lambda),gcvlambda,LOOCVlambda))
-ggplot(plotdata, aes(x=log10(lambda),y=gcvlambda)) +geom_point()+
-  xlab("log(lambda)") + ylab("GCV Criterion")+
-  geom_vline(xintercept=log10(lambda)[gcvlambda == min(gcvlambda)],color='red')
-ggplot(plotdata, aes(x=log10(lambda),y=LOOCVlambda)) + geom_point()+
-  xlab("log(lambda)") + ylab("LOOCV Error")+
-  geom_vline(xintercept=log10(lambda)[LOOCVlambda == min(LOOCVlambda)],color='red')
+x<-rnorm(p)
+k<-1000
+tol<-1e-6
+xapproxA<- RStudio2020::power_method_dense(A,x,k,tol)
+xapproxB<- RStudio2020::power_method_dense(B,x,k,tol)
+xapproxC<- RStudio2020::power_method_dense(C,x,k,tol)
+
+round(norm(A%*%xapproxA,type="2"),3)
+round(max(svd(A)$d),3)
+
+round(norm(B%*%xapproxB,type="2"),3)
+round(max(svd(B)$d),3)
+
+round(norm(C%*%xapproxC,type="2"),3)
+round(max(svd(C)$d),3)
 ```
-Based on the information from these two plots, GCV and LOOCV error are both minimized for $\lambda = 10^5$. In both cases the largest change occurs between $\lambda = 10^{-5}$ and $\lambda = 10^{-4}$. As LOOCV and  GCV are not computationally intensive here, it is reasonable to choose the best tuning parameter based on the behavior of either in this example. To avoid problems with bias, it is best to choose a small tuning parameter. A large tuning parameter will increase bias, but due to the fact that $\M{XX}\Tra$ has a relatively small condition number (around 156, found with \texttt{kappa()}), it will not be unstable for most perturbations. Thus the resulting matrix $\M{XX}\Tra(\M{XX}\Tra + \lambda\M{I}_n)\Inv$ will be nearly the identity matrix, resulting in a very small denominator in the GCV summation. Thus, the the introduction of large perturbations will be adding more bias but not greatly reducing variance. After $\lambda=10^{-3}$, the reduction in GCV is little, so this is a reasonable choice for $\lambda$.
+
+Usage of the `power_method_sparse` function to compute the largest singular value of the following matrices, comparing results with what is provided by the `svd` function in R. 
+
+```{r, echo=TRUE}
+library(Matrix)
+set.seed(12345)
+n <- 1e3
+nnz <- 0.1*n
+ix <- sample(1:n, size = nnz, replace = FALSE)
+A <- Matrix(0, nrow=n, ncol=n, sparse=TRUE)
+A[ix] <- rnorm(nnz)
+A[1,1] <- 10
+
+ix <- sample(1:n, size = nnz, replace = FALSE)
+B <- Matrix(0, nrow=n, ncol=n, sparse=TRUE)
+B[ix] <- rnorm(nnz)
+B[1,1] <- 10
+
+ix <- sample(1:n, size = nnz, replace = FALSE)
+C <- Matrix(0, nrow=n, ncol=n, sparse=TRUE)
+C[ix] <- rnorm(nnz)
+C[1,1] <- 10
+
+x<-rnorm(ncol(A))
+k<-1000
+tol<-1e-6
+
+xapproxA<- RStudio2020::power_method_sparse(A,x,k,tol)
+xapproxB<- RStudio2020::power_method_sparse(B,x,k,tol)
+xapproxC<- RStudio2020::power_method_sparse(C,x,k,tol)
+
+round(norm(A%*%xapproxA,type="2"),3)
+round(max(svd(as.matrix(A))$d),3)
+
+round(norm(B%*%xapproxB,type="2"),3)
+round(max(svd(as.matrix(B))$d),3)
+
+round(norm(C%*%xapproxC,type="2"),3)
+round(max(svd(as.matrix(C))$d),3)
+```
+
+\newpage
+
+Usage of the `power_method_low_rank` function to compute the largest singular value of the matrices $\M{U}_1\M{V}_1\Tra, \M{U}_2\M{V}_2\Tra,$ and $\M{U}_3\M{V}_3\Tra$ defined below, compared to what is provided by the `svd` function in R. 
+
+```{r, echo=TRUE}
+set.seed(12345)
+n <- 1e3
+k <- 10
+U1 <- V1 <- matrix(rnorm(n*k), n, k)
+
+U2 <- V2 <- matrix(rnorm(n*k), n, k)
+
+U3 <- V3 <- matrix(rnorm(n*k), n, k)
+
+
+x<-rnorm(n)
+k<-1000
+tol<-1e-6
+xapproxU1V1<- RStudio2020::power_method_low_rank(U1,V1,x,k,tol)
+xapproxU2V2<- RStudio2020::power_method_low_rank(U2,V2,x,k,tol)
+xapproxU3V3<- RStudio2020::power_method_low_rank(U3,V3,x,k,tol)
+
+norm((U1%*%t(V1))%*%xapproxU1V1,type="2")
+max(svd(U1%*%t(V1))$d)
+
+norm((U2%*%t(V2))%*%xapproxU2V2,type="2")
+max(svd(U2%*%t(V2))$d)
+
+norm((U3%*%t(V3))%*%xapproxU3V3,type="2")
+max(svd(U3%*%t(V3))$d)
+```
+
+The largest value of the following matrix is estimated below.
+
+$$
+\M{A} = \M{S} + \V{u}\V{u}\Tra.
+$$
+
+```{r, echo=TRUE, error=TRUE,warning=TRUE}
+set.seed(12345)
+n <- 1e7
+nnz <- 1e-5*n
+ix <- sample(1:n, size = nnz, replace = FALSE)
+S <- Matrix(0, nrow=n, ncol=n, sparse=TRUE)
+S[ix] <- rnorm(nnz)
+S[1,1] <- 10
+
+u <- matrix(rnorm(n), ncol=1)
+
+
+
+x<-rnorm(n)
+k<-1000
+tol<-1e-6
+
+max(svd(S+u%*%t(u))$d)
+RStudio2020::power_method_dense(S+u%*%t(u),x,k,tol)
+xapproxsplr<-RStudio2020::power_method_sparse_plus_low_rank(S,u,u,x,k,tol)
+
+###Largest value
+sqrt(t(xapproxsplr)%*%as.matrix((Matrix::t(S)%*%S)%*%xapproxsplr +
+                     u%*%(t(u)%*%u)%*%(t(u)%*%xapproxsplr) +
+                     u%*%(t(u)%*%(S%*%xapproxsplr)) +
+                     (Matrix::t(S)%*%u)%*%(t(u)%*%xapproxsplr)))
+
+```
+
+
+Both `svd` and `power_method_dense` result in errors, as the matrix is too large and will cause storage issues. Thus `power_method_sparse_plus_low_rank` is what has to be used to compute the result.
+

@@ -1,0 +1,98 @@
+---
+title: "Supoptimality Examples"
+author: "David Elsheimer"
+date: "2/26/2020"
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\Real}{\mathbb{R}}
+  - \newcommand{\dom}{{\bf dom}\,}
+  - \newcommand{\Tra}{^{\sf T}} 
+  - \newcommand{\Inv}{^{-1}} 
+  - \def\vec{\mathop{\rm vec}\nolimits}
+  - \newcommand{\diag}{\mathop{\rm diag}\nolimits}
+  - \newcommand{\tr}{\operatorname{tr}} 
+  - \newcommand{\epi}{\operatorname{epi}}
+  - \newcommand{\V}[1]{{\bm{\mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\VE}[2]{\MakeLowercase{#1}_{#2}} 
+  - \newcommand{\Vn}[2]{\V{#1}^{(#2)}} 
+  - \newcommand{\Vtilde}[1]{{\bm{\tilde \mathbf{\MakeLowercase{#1}}}}}
+  - \newcommand{\Vhat}[1]{{\bm{\hat \mathbf{\MakeLowercase{#1}}}}} 
+  - \newcommand{\VtildeE}[2]{\tilde{\MakeLowercase{#1}}_{#2}} 
+  - \newcommand{\M}[1]{{\bm{\mathbf{\MakeUppercase{#1}}}}}
+  - \newcommand{\ME}[2]{\MakeLowercase{#1}_{#2}}
+  - \newcommand{\Mtilde}[1]{{\bm{\tilde \mathbf{\MakeUppercase{#1}}}}}
+  - \newcommand{\Mbar}[1]{{\bm{\bar \mathbf{\MakeUppercase{#1}}}}} 
+  - \newcommand{\Mn}[2]{\M{#1}^{(#2)}} 
+output: pdf_document
+---
+
+
+The `boxls` function is used to compute the least squares estimator $\Vhat{\beta}$ subject to the constraints that $\beta_j \in [0, 1]$ for $j = 1, \ldots, 20$. Using `boxls_gap`, the suboptimality of the output of `boxls` is computed. `factr` and `maxit` are changed around to see how `boxls` output changes. 
+
+**Answer:**
+
+```{r, echo=TRUE}
+y<-as.matrix(read.csv("y.csv",header=FALSE))
+X<- as.matrix(read.csv("X.csv",header=FALSE))
+
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e-7,maxit=1e4)$par)
+betas
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e-7,maxit=1e1)$par)
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e7,maxit=1e4)$par)
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e7,maxit=1e1)$par)
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+
+
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e17,maxit=1e4)$par)
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+
+betas<- as.matrix(RStudio2020::boxls(X,y,runif(20),rep(0,20),rep(1,20),factr=1e17,maxit=1e1)$par)
+RStudio2020::boxls_gap(X,y,betas,rep(0,20),rep(1,20))
+```
+The fewer iterations and the greater the factor, the less optimal our output becomes, as $g(\V{\beta})$ gets larger and larger when these are increased.
+
+
+**Step 4:** Recall the first order optimality condition
+
+$$
+\langle \nabla \ell(\V{\beta}^\star), \V{\beta} - \V{\beta}^\star \rangle \geq 0 \quad\quad \text{for all $\V{\beta} \in \mathcal{D}$}.
+$$
+The left hand side is a directional derivative of $\ell$ evaluated at a global minimizer of $\ell$ pointing into the feasible set $\mathcal{D}$.
+
+1000 replicates of random $\V{\beta}$s drawn from $\mathcal{D} = [0,1]^{20}$ are generated and the directional derivative at $\Vhat{\beta}$ and the output of `boxls` are computed using these 1000 $\V{\beta}$s. 
+
+
+```{r, echo=TRUE}
+library(Matrix)
+b<-runif(20)
+lb<-rep(0,20)
+ub<-rep(1,20)
+
+ddiv1<-Matrix(NA,nrow=0,ncol=1)
+ddiv2<-Matrix(NA,nrow=0,ncol=1)
+ddiv3<-Matrix(NA,nrow=0,ncol=1)
+betamin1<-RStudio2020::boxls(X,y,b,lb,ub,factr=1e-7)$par
+betamin2<-RStudio2020::boxls(X,y,b,lb,ub,factr=1e7)$par
+betamin3<-RStudio2020::boxls(X,y,b,lb,ub,factr=1e17)$par
+
+for(i in 1:1000){
+  beta<-runif(20)
+  ddiv1<-rbind(ddiv1,t(t(X)%*%(X%*%betamin1)-t(X)%*%y)%*%(beta-betamin1))
+  ddiv2<-rbind(ddiv2,t(t(X)%*%(X%*%betamin2)-t(X)%*%y)%*%(beta-betamin2))
+  ddiv3<-rbind(ddiv3,t(t(X)%*%(X%*%betamin3)-t(X)%*%y)%*%(beta-betamin3))
+  }
+summary(as.vector(ddiv1))
+summary(as.vector(ddiv2))
+summary(as.vector(ddiv3))
+
+```
+As more and more suboptimal $\Vhat{\beta}$'s are considered (where the factor is increased), the mean of the directional derivatives decreases, and the variance of the distribution increases, as noted by the increased spread of the distribution and more extreme maximum and minimum directional derivatives.
